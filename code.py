@@ -138,10 +138,20 @@ async def encoder_loop():
 
     last_position = macropad.encoder
     macro_changed = False
+    pressed = False
+    delta = 0
 
     while True:
         macropad.encoder_switch_debounced.update()
-        if last_position != macropad.encoder or macropad.encoder_switch_debounced.released:
+        encval = macropad.encoder
+        delta = encval - last_position
+        last_position = encval
+        if macropad.encoder_switch_debounced.released:
+            pressed = False
+        elif macropad.encoder_switch_debounced.pressed:
+            pressed = True
+
+        if delta != 0 or macropad.encoder_switch_debounced.released:
             keys.press(Keys.KEY_RESUME)                  # Don't go to sleep!
             keys.release(Keys.KEY_RESUME)
         if not awake_ev.is_set():
@@ -149,31 +159,26 @@ async def encoder_loop():
                 await asyncio.wait_for(awake_ev.wait(), 1.0)
             except asyncio.TimeoutError:
                 pass
-        elif macropad.encoder_switch and macropad.encoder < last_position:
-            last_position = macropad.encoder             # Push down and turn (left)
-            set_app((app_index - 1) % len(apps))
-            macro_changed = True
-        elif macropad.encoder_switch and macropad.encoder > last_position:
-            last_position = macropad.encoder             # Push down and turn (right)
-            set_app((app_index + 1) % len(apps))
-            macro_changed = True
-        elif macropad.encoder < last_position:           # Encoder counter-clockwise
-            while macropad.encoder < last_position:
-                keys.press(Keys.KEY_ENC_LEFT)
-                last_position -= 1
-            keys.release(Keys.KEY_ENC_LEFT)
-        elif macropad.encoder > last_position:           # Encoder clockwise
-            while macropad.encoder > last_position:
-                keys.press(Keys.KEY_ENC_RIGHT)
-                last_position += 1
-            keys.release(Keys.KEY_ENC_RIGHT)
-        elif macropad.encoder_switch_debounced.released and macro_changed:
-            keys.press(Keys.KEY_LAUNCH)                  # Press the "new page" button
-            keys.release(Keys.KEY_LAUNCH)
-            macro_changed = False
-        elif macropad.encoder_switch_debounced.released: # Encoder button "pressed"
-            keys.press(Keys.KEY_ENC_BUTTON)
-            keys.release(Keys.KEY_ENC_BUTTON)
+        elif pressed:
+            if delta < 0:                                # Push down and turn (left)
+                set_app((app_index - 1) % len(apps))
+                macro_changed = True
+            elif delta > 0:                              # Push down and turn (right)
+                set_app((app_index + 1) % len(apps))
+                macro_changed = True
+        else:
+            if delta != 0:                               # Encoder turned while not pressed
+                key = Keys.KEY_ENC_LEFT if delta < 0 else Keys.KEY_ENC_RIGHT
+                for _ in range(abs(delta)):
+                    keys.press(key)
+                keys.release(key)
+            elif macropad.encoder_switch_debounced.released and macro_changed:
+                keys.press(Keys.KEY_LAUNCH)              # Press the "new page" button
+                keys.release(Keys.KEY_LAUNCH)
+                macro_changed = False
+            elif macropad.encoder_switch_debounced.released: # Encoder button "pressed"
+                keys.press(Keys.KEY_ENC_BUTTON)
+                keys.release(Keys.KEY_ENC_BUTTON)
 
         await asyncio.sleep(0)
 
