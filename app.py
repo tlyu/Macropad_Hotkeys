@@ -8,11 +8,11 @@ MACROS_DEFAULT = []
 
 class App:
     def __init__(self, appdata):
-        self.name    = appdata['name']    if 'name'    in appdata else NAME_DEFAULT
-        self.order   = appdata['order']   if 'order'   in appdata else ORDER_DEFAULT
-        self.launch  = appdata['launch']  if 'launch'  in appdata else LAUNCH_DEFUALT
-        self.timeout = appdata['timeout'] if 'timeout' in appdata else TIMEOUT_DEFAULT
-        self.macros  = appdata['macros']  if 'macros'  in appdata else MACROS_DEFAULT
+        self.name    = appdata.get('name',    NAME_DEFAULT)
+        self.order   = appdata.get('order',   ORDER_DEFAULT)
+        self.launch  = appdata.get('launch',  LAUNCH_DEFUALT)
+        self.timeout = appdata.get('timeout', TIMEOUT_DEFAULT)
+        self.macros  = appdata.get('macros',  MACROS_DEFAULT)
 
     @staticmethod
     def load_all(dir):
