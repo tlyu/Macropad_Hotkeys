@@ -30,7 +30,6 @@ pixels = PixelListener(macropad)
 hid = InputDeviceListener(macropad)
 
 # State variables
-last_time_seconds = time.monotonic()
 keys = None
 app_index = 0
 
@@ -66,9 +65,6 @@ class SleepTimer:
         self.awake.set()
         self.action.set()
 
-    def tick(self, keys, frames):
-        pass
-
     async def loop(self):
         global keys
         while True:
@@ -84,14 +80,6 @@ awake_ev = asyncio.Event()
 awake_ev.set()
 action_ev = asyncio.Event()
 sleep_timer = SleepTimer(awake_ev, action_ev)
-
-# Fractions of a second that have elapsed since this method's last run
-def elapsed_seconds():
-    global last_time_seconds
-    current_seconds = time.monotonic()
-    elapsed_seconds = current_seconds - last_time_seconds
-    last_time_seconds = current_seconds
-    return elapsed_seconds
 
 # Set the macro page (app) at the given index
 def set_app(index):
@@ -189,12 +177,7 @@ async def encoder_loop():
 
         await asyncio.sleep(0)
 
-async def ticks_loop():
-    while True:
-        keys.tick(elapsed_seconds())
-        await asyncio.sleep(0.1)
-
 async def main():
-    await asyncio.gather(sleep_timer.loop(), keys_loop(), encoder_loop(), ticks_loop())
+    await asyncio.gather(sleep_timer.loop(), keys_loop(), encoder_loop(), pixels.loop())
 
 asyncio.run(main())

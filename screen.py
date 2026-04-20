@@ -81,9 +81,6 @@ class ScreenListener:
         commands = keys[index].commands
         if not commands: return
 
-    def tick(self, keys, frames):
-        pass
-
     def sleep(self):
         self.macropad.display_sleep = True
 

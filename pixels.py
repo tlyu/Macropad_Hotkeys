@@ -1,3 +1,4 @@
+import asyncio
 from commands import Sleep, Resume
 from shaders.pixel_shaders import PressedShader
 
@@ -59,11 +60,12 @@ class PixelListener:
         commands = keys[index].commands
         if not commands: return
     
-    def tick(self, keys, frames):
-        for shader in self.shaders:
-            shader.tick(keys, frames)
-        self.shaders = list(filter(lambda s: not s.done(), self.shaders))
-    
+    async def loop(self):
+        # Clean up completed shaders
+        while True:
+            self.shaders = list(filter(lambda s: not s.done(), self.shaders))
+            await asyncio.sleep(1)
+
     def sleep(self):
         if self.sleeping: return
         self.pixels.brightness = 0.0
@@ -77,7 +79,7 @@ class PixelListener:
         self.sleeping = False
 
     def highlight(self, key_index):
-        self.shaders += [PressedShader(self.pixels, key_index)]
+        self.shaders += [asyncio.create_task(PressedShader(self.pixels, key_index).loop())]
 
     def reset(self, key_index):
         pass
