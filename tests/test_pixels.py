@@ -1,7 +1,9 @@
-from unittest import mock, TestCase
+from unittest import mock, TestCase, IsolatedAsyncioTestCase
+from unittest.mock import patch
 from keys import Keys, Key
 from pixels import PixelListener
 from commands import Commands, Sleep
+import asyncio
 
 class MockKeys(Keys):
     def __init__(self, listeners, app):
@@ -72,13 +74,6 @@ class TestPixels(TestCase):
 
         pixels.pixels.show.assert_called_once()
 
-    def test_highlight(self):
-        macropad = MockMacroPad()
-        pixels = PixelListener(macropad)
-        pixels.highlight(1)
-
-        self.assertEqual(len(pixels.shaders), 1)
-
     def test_set_keys(self):
         keys = MockKeys([], None)
         macropad = MockMacroPad()
@@ -142,43 +137,31 @@ class TestPixels(TestCase):
 
         screen.sleep.assert_called_once()
 
-    def test_tick_fire(self):
-        class MockShader:
-            tick = mock.Mock()
-            done = lambda s: False
-
-        keys = MockKeys([], None)
+    def test_tick_empty(self):
         macropad = MockMacroPad()
-        shader = MockShader()
         pixels = PixelListener(macropad)
-        pixels.shaders += [shader]
 
-        pixels.tick(keys, 1)
-
-        shader.tick.assert_called_once()
-        self.assertEqual(len(pixels.shaders), 1)
-
-    def test_tick_clear(self):
-        class MockShader:
-            tick = mock.Mock()
-            done = lambda s: True
-
-        keys = MockKeys([], None)
-        macropad = MockMacroPad()
-        shader = MockShader()
-        pixels = PixelListener(macropad)
-        pixels.shaders += [shader]
-
-        pixels.tick(keys, 1)
-
-        shader.tick.assert_called_once()
         self.assertEqual(len(pixels.shaders), 0)
 
-    def test_tick_empty(self):
-        keys = MockKeys([], None)
+class TestPixelsAsync(IsolatedAsyncioTestCase):
+    @patch('asyncio.sleep')
+    async def test_highlight(self, mock):
         macropad = MockMacroPad()
         pixels = PixelListener(macropad)
+        pixels.highlight(1)
 
-        pixels.tick(keys, 1)
+        self.assertEqual(len(pixels.shaders), 1)
+        await pixels.shaders[0]
+        self.assertEqual(len(mock.mock_calls), 4)
+        self.assertEqual(len(macropad.pixels.show.mock_calls), 5)
 
+    @patch('asyncio.sleep')
+    async def test_cleared_shaders(self, mock):
+        macropad = MockMacroPad()
+        pixels = PixelListener(macropad)
+        pixels.highlight(1)
+
+        await pixels.shaders[0]
+        with patch('asyncio.sleep', side_effect=asyncio.CancelledError):
+            await asyncio.gather(pixels.loop(), return_exceptions=True)
         self.assertEqual(len(pixels.shaders), 0)
